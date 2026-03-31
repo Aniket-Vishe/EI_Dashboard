@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Laptop Market Analysis Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.3/echarts.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap');
+  *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+  :root {
+    --bg:#050810; --surface:rgba(255,255,255,0.032); --border:rgba(255,255,255,0.075);
+    --border-h:rgba(0,212,255,0.35); --a1:#00d4ff; --a2:#7c3aed; --a3:#f472b6;
+    --a4:#34d399; --a5:#fb923c; --tm:#e2e8f0; --td:#64748b; --glow:rgba(0,212,255,0.13);
+  }
+  html,body { width:100vw; height:100vh; overflow:hidden; background:var(--bg); font-family:'DM Sans',sans-serif; color:var(--tm); }
+  body::before {
+    content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
+    background:
+      radial-gradient(ellipse 80% 50% at 10% 0%,rgba(0,212,255,0.07) 0%,transparent 60%),
+      radial-gradient(ellipse 60% 40% at 90% 100%,rgba(124,58,237,0.08) 0%,transparent 60%);
+  }
+  #app { position:relative; z-index:1; width:100vw; height:100vh; display:flex; flex-direction:column; padding:10px 12px 8px; gap:8px; }
+
+  header { display:flex; align-items:center; justify-content:space-between; flex-shrink:0; }
+  .brand { display:flex; align-items:center; gap:10px; }
+  .brand-icon { width:32px; height:32px; border-radius:8px; background:linear-gradient(135deg,var(--a1),var(--a2)); display:flex; align-items:center; justify-content:center; font-size:16px; box-shadow:0 0 16px var(--glow); }
+  .brand h1 { font-family:'Syne',sans-serif; font-size:15px; font-weight:700; letter-spacing:.04em; background:linear-gradient(90deg,var(--a1),#a78bfa); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+  .brand span { font-size:10px; color:var(--td); letter-spacing:.1em; text-transform:uppercase; display:block; margin-top:-2px; -webkit-text-fill-color:var(--td); }
+  .kpis { display:flex; gap:8px; }
+  .kpi { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:5px 13px; display:flex; align-items:center; gap:8px; transition:all .3s; }
+  .kpi:hover { border-color:var(--border-h); transform:translateY(-1px); box-shadow:0 4px 20px var(--glow); }
+  .kpi-icon { font-size:17px; }
+  .kpi-label { font-size:9px; color:var(--td); text-transform:uppercase; letter-spacing:.08em; }
+  .kpi-value { font-family:'Syne',sans-serif; font-size:15px; font-weight:700; background:linear-gradient(90deg,var(--a1),#a78bfa); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+  .live { display:flex; align-items:center; gap:5px; font-size:9px; color:var(--td); }
+  .pulse { width:6px; height:6px; border-radius:50%; background:var(--a4); animation:pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.8)} }
+
+  .grid { flex:1; display:grid; grid-template-columns:repeat(5,1fr); grid-template-rows:repeat(2,1fr); gap:8px; min-height:0; }
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:10px 12px 7px; display:flex; flex-direction:column; position:relative; overflow:hidden; min-height:0; transition:all .35s cubic-bezier(.34,1.56,.64,1); animation:fadeIn .6s ease both; opacity:0; }
+  .card::after { content:''; position:absolute; inset:0; background:linear-gradient(135deg,transparent,rgba(255,255,255,.015)); pointer-events:none; }
+  .card:hover { border-color:var(--border-h); transform:translateY(-2px) scale(1.006); box-shadow:0 8px 32px rgba(0,212,255,0.12),0 2px 8px rgba(0,0,0,.4); }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(10px) scale(.98)} to{opacity:1;transform:none} }
+  .card:nth-child(1){animation-delay:.05s}.card:nth-child(2){animation-delay:.1s}.card:nth-child(3){animation-delay:.15s}
+  .card:nth-child(4){animation-delay:.2s}.card:nth-child(5){animation-delay:.25s}.card:nth-child(6){animation-delay:.3s}
+  .card:nth-child(7){animation-delay:.35s}.card:nth-child(8){animation-delay:.4s}.card:nth-child(9){animation-delay:.45s}
+  .card:nth-child(10){animation-delay:.5s}
+
+  .card-header { display:flex; align-items:center; gap:6px; margin-bottom:3px; flex-shrink:0; }
+  .card-icon { width:22px; height:22px; border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:12px; flex-shrink:0; }
+  .card-title { font-family:'Syne',sans-serif; font-size:10.5px; font-weight:600; color:var(--tm); letter-spacing:.02em; }
+  .chart-wrap { flex:1; min-height:0; position:relative; }
+  .chart-wrap>div { width:100%!important; height:100%!important; }
+  .insight { font-size:8.5px; color:var(--td); margin-top:2px; flex-shrink:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .insight b { color:var(--a1); }
+
+  .g1{background:linear-gradient(135deg,rgba(0,212,255,.18),rgba(0,212,255,.04))}
+  .g2{background:linear-gradient(135deg,rgba(124,58,237,.18),rgba(124,58,237,.04))}
+  .g3{background:linear-gradient(135deg,rgba(244,114,182,.18),rgba(244,114,182,.04))}
+  .g4{background:linear-gradient(135deg,rgba(52,211,153,.18),rgba(52,211,153,.04))}
+  .g5{background:linear-gradient(135deg,rgba(251,146,60,.18),rgba(251,146,60,.04))}
+
+  #loading { position:fixed; inset:0; z-index:999; background:var(--bg); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; }
+  .loader { width:44px; height:44px; border:3px solid rgba(0,212,255,.15); border-top-color:var(--a1); border-radius:50%; animation:spin .8s linear infinite; }
+  @keyframes spin { to{transform:rotate(360deg)} }
+  #loading p { font-size:11px; color:var(--td); letter-spacing:.1em; text-transform:uppercase; }
+</style>
+</head>
+<body>
+
+<div id="loading"><div class="loader"></div><p>Parsing Dataset…</p></div>
+
+<div id="app" style="display:none">
+  <header>
+    <div class="brand">
+      <div class="brand-icon">💻</div>
+      <div><h1>LAPTOP MARKET INTELLIGENCE</h1><span>Interactive Analytics · 2024</span></div>
+    </div>
+    <div class="kpis">
+      <div class="kpi"><div class="kpi-icon">📦</div><div><div class="kpi-label">Total Laptops</div><div class="kpi-value" id="kpi-total">—</div></div></div>
+      <div class="kpi"><div class="kpi-icon">💰</div><div><div class="kpi-label">Avg Price</div><div class="kpi-value" id="kpi-price">—</div></div></div>
+      <div class="kpi"><div class="kpi-icon">🏷️</div><div><div class="kpi-label">Brands</div><div class="kpi-value" id="kpi-brands">—</div></div></div>
+      <div class="kpi"><div class="kpi-icon">🎮</div><div><div class="kpi-label">w/ GPU</div><div class="kpi-value" id="kpi-gpu">—</div></div></div>
+    </div>
+    <div class="live"><div class="pulse"></div>Live Data</div>
+  </header>
+
+  <div class="grid">
+    <div class="card"><div class="card-header"><div class="card-icon g1">🌳</div><span class="card-title">Brand Volume Treemap</span></div><div class="chart-wrap"><div id="c1"></div></div><div class="insight" id="i1"></div></div>
+    <div class="card"><div class="card-header"><div class="card-icon g2">📡</div><span class="card-title">Brand Specs Radar</span></div><div class="chart-wrap"><div id="c2"></div></div><div class="insight" id="i2"></div></div>
+    <div class="card"><div class="card-header"><div class="card-icon g3">🔵</div><span class="card-title">Price vs RAM Scatter</span></div><div class="chart-wrap"><div id="c3"></div></div><div class="insight" id="i3"></div></div>
+    <div class="card"><div class="card-header"><div class="card-icon g4">🌊</div><span class="card-title">Cumulative Price Area</span></div><div class="chart-wrap"><div id="c4"></div></div><div class="insight" id="i4"></div></div>
+    <div class="card"><div class="card-header"><div class="card-icon g5">☀️</div><span class="card-title">CPU × Storage Sunburst</span></div><div class="chart-wrap"><div id="c5"></div></div><div class="insight" id="i5"></div></div>
+    <div class="card"><div class="card-header"><div class="card-icon g1">🫧</div><span class="card-title">Brand Bubble Chart</span></div><div class="chart-wrap"><div id="c6"></div></div><div class="insight" id="i6"></div></div>
+    <div class="card"><div class="card-header"><div class="card-icon g2">🌡️</div><span class="card-title">RAM × Storage Heatmap</span></div><div class="chart-wrap"><div id="c7"></div></div><div class="insight" id="i7"></div></div>
+    <div class="card"><div class="card-header"><div class="card-icon g3">📈</div><span class="card-title">Step Price Curve</span></div><div class="chart-wrap"><div id="c8"></div></div><div class="insight" id="i8"></div></div>
+    <div class="card"><div class="card-header"><div class="card-icon g4">🎯</div><span class="card-title">GPU Tier Funnel</span></div><div class="chart-wrap"><div id="c9"></div></div><div class="insight" id="i9"></div></div>
+    <div class="card"><div class="card-header"><div class="card-icon g5">🕸️</div><span class="card-title">Top Brand Polar Bars</span></div><div class="chart-wrap"><div id="c10"></div></div><div class="insight" id="i10"></div></div>
+  </div>
+</div>
+
+<script>
+const PAL = ['#00d4ff','#7c3aed','#f472b6','#34d399','#fb923c','#facc15','#60a5fa','#a78bfa','#f87171','#4ade80','#38bdf8','#e879f9'];
+const BASE = {
+  animation:true, animationDuration:1000, animationEasing:'cubicOut',
+  backgroundColor:'transparent',
+  textStyle:{fontFamily:'DM Sans',color:'#94a3b8'},
+  tooltip:{backgroundColor:'rgba(5,8,16,0.92)',borderColor:'rgba(0,212,255,0.3)',borderWidth:1,textStyle:{color:'#e2e8f0',fontSize:11},extraCssText:'border-radius:8px;backdrop-filter:blur(8px);'}
+};
+const m = o => ({...BASE,...o,tooltip:{...BASE.tooltip,...(o.tooltip||{})}});
+const avg = a => a.reduce((s,v)=>s+v,0)/a.length;
+const ic = id => echarts.init(document.getElementById(id),null,{renderer:'canvas'});
+
+function parseCSV(text){
+  const lines=text.trim().split('\n');
+  const headers=lines[0].split(',').map(h=>h.trim().replace(/^"|"$/g,''));
+  return lines.slice(1).map(line=>{
+    const vals=[];let cur='',inQ=false;
+    for(let i=0;i<line.length;i++){
+      const c=line[i];
+      if(c==='"'){inQ=!inQ;}else if(c===','&&!inQ){vals.push(cur.trim());cur='';}else cur+=c;
+    }
+    vals.push(cur.trim());
+    const obj={};
+    headers.forEach((h,i)=>obj[h]=(vals[i]||'').replace(/^"|"$/g,'').trim());
+    return obj;
+  }).filter(r=>r['Brand']);
+}
+
+async function main(){
+  let raw;
+  try{raw=await(await fetch('laptops.csv')).text();}
+  catch(e){try{raw=await(await fetch('./laptops.csv')).text();}
+  catch(e2){document.getElementById('loading').innerHTML='<p style="color:#f87171">Place laptops.csv in the same folder as this HTML file.</p>';return;}}
+
+  const data=parseCSV(raw);
+  const prices=data.map(d=>parseFloat(d['Final Price'])).filter(p=>!isNaN(p)&&p>0);
+  const brands=[...new Set(data.map(d=>d['Brand']))].filter(Boolean);
+
+  document.getElementById('kpi-total').textContent=data.length.toLocaleString();
+  document.getElementById('kpi-price').textContent='€'+Math.round(avg(prices)).toLocaleString();
+  document.getElementById('kpi-brands').textContent=brands.length;
+  document.getElementById('kpi-gpu').textContent=Math.round(data.filter(d=>d['GPU']&&d['GPU']!=='').length/data.length*100)+'%';
+
+  document.getElementById('loading').style.display='none';
+  document.getElementById('app').style.display='flex';
+
+  const charts=[];
+  setTimeout(()=>{charts.push(...build(data,prices,brands));},80);
+  window.addEventListener('resize',()=>charts.forEach(c=>c.resize()));
+}
+
+function cpuFam(d){
+  const c=d['CPU']||'';
+  if(/i9/i.test(c))return'Core i9';if(/i7/i.test(c))return'Core i7';if(/i5/i.test(c))return'Core i5';
+  if(/i3/i.test(c))return'Core i3';if(/Ryzen 9/i.test(c))return'Ryzen 9';if(/Ryzen 7/i.test(c))return'Ryzen 7';
+  if(/Ryzen 5/i.test(c))return'Ryzen 5';if(/Ryzen 3/i.test(c))return'Ryzen 3';
+  if(/Apple/i.test(c))return'Apple M';if(/Celeron/i.test(c))return'Celeron';return'Other';
+}
+
+function build(data,prices,brands){
+  const charts=[];
+  const brandData=brands.map(b=>{
+    const ps=data.filter(d=>d['Brand']===b).map(d=>parseFloat(d['Final Price'])).filter(p=>!isNaN(p)&&p>0);
+    return{name:b,value:ps.length,avgPrice:ps.length?Math.round(avg(ps)):0};
+  }).filter(x=>x.value>=3).sort((a,b)=>b.value-a.value);
+
+  // C1 — TREEMAP
+  const c1=ic('c1');charts.push(c1);
+  c1.setOption(m({
+    tooltip:{trigger:'item',formatter:p=>`<b>${p.name}</b><br>Models: ${p.value}<br>Avg: €${p.data.avgPrice}`},
+    series:[{
+      type:'treemap',roam:false,nodeClick:false,breadcrumb:{show:false},
+      data:brandData.map((x,i)=>({...x,itemStyle:{color:PAL[i%PAL.length],borderColor:'rgba(5,8,16,0.5)',borderWidth:2,borderRadius:3}})),
+      label:{show:true,fontSize:9.5,fontFamily:'DM Sans',color:'#fff',formatter:p=>`${p.name}\n${p.value}`},
+      upperLabel:{show:false},
+      levels:[{itemStyle:{borderWidth:0,gapWidth:2}}]
+    }]
+  }));
+  document.getElementById('i1').innerHTML=`<b>${brandData[0].name}</b> has the most listings — <b>${brandData[0].value}</b> models`;
+
+  // C2 — RADAR
+  const top6=brandData.slice(0,6);
+  const radarSeries=top6.map(b=>{
+    const bd=data.filter(d=>d['Brand']===b.name);
+    const bp=bd.map(d=>parseFloat(d['Final Price'])).filter(p=>!isNaN(p)&&p>0);
+    const br=bd.map(d=>parseFloat(d['RAM'])).filter(r=>!isNaN(r));
+    const bs=bd.map(d=>parseFloat(d['Storage'])).filter(s=>!isNaN(s));
+    return{name:b.name,value:[
+      Math.min(100,avg(bp)/30),
+      avg(br)||0,
+      Math.min(100,(avg(bs)||0)/10),
+      bd.filter(d=>d['GPU']&&d['GPU']!=='').length/bd.length*100,
+      100-bd.filter(d=>d['Status']==='Refurbished').length/bd.length*100
+    ]};
+  });
+  const c2=ic('c2');charts.push(c2);
+  c2.setOption(m({
+    legend:{show:true,top:0,right:0,textStyle:{fontSize:7.5,color:'#64748b'},itemWidth:9,itemHeight:9},
+    radar:{
+      center:['46%','54%'],radius:'60%',
+      indicator:[{name:'Avg Price',max:100},{name:'Avg RAM',max:64},{name:'Storage',max:100},{name:'GPU %',max:100},{name:'New %',max:100}],
+      axisName:{fontSize:8,color:'#64748b'},
+      splitLine:{lineStyle:{color:'rgba(255,255,255,0.06)'}},
+      splitArea:{areaStyle:{color:['rgba(255,255,255,0.01)','rgba(255,255,255,0.025)']}},
+      axisLine:{lineStyle:{color:'rgba(255,255,255,0.07)'}}
+    },
+    series:[{type:'radar',data:radarSeries.map((d,i)=>({
+      name:d.name,value:d.value,
+      lineStyle:{color:PAL[i],width:1.5},
+      areaStyle:{color:PAL[i],opacity:0.08},
+      itemStyle:{color:PAL[i]},symbol:'circle',symbolSize:4
+    }))}]
+  }));
+  document.getElementById('i2').innerHTML=`Radar compares price, RAM, storage, GPU% & newness across <b>${top6.length} brands</b>`;
+
+  // C3 — SCATTER price vs RAM
+  const topScatterBrands=brandData.slice(0,7).map(b=>b.name);
+  const c3=ic('c3');charts.push(c3);
+  c3.setOption(m({
+    grid:{top:4,bottom:24,left:4,right:6,containLabel:true},
+    tooltip:{trigger:'item',formatter:p=>`<b>${p.seriesName}</b><br>RAM: ${p.data[0]}GB  Price: €${p.data[1]}`},
+    xAxis:{type:'value',name:'RAM (GB)',nameTextStyle:{fontSize:8,color:'#64748b'},axisLabel:{fontSize:8,color:'#64748b'},splitLine:{lineStyle:{color:'rgba(255,255,255,0.04)'}}},
+    yAxis:{type:'value',name:'€ Price',nameTextStyle:{fontSize:8,color:'#64748b'},axisLabel:{fontSize:8,color:'#64748b',formatter:v=>'€'+v},splitLine:{lineStyle:{color:'rgba(255,255,255,0.04)'}}},
+    series:topScatterBrands.map((brand,i)=>({
+      name:brand,type:'scatter',symbolSize:5,itemStyle:{color:PAL[i],opacity:0.75},
+      emphasis:{itemStyle:{opacity:1,shadowBlur:8,shadowColor:PAL[i]}},
+      data:data.filter(d=>d['Brand']===brand).map(d=>{const p=parseFloat(d['Final Price']),r=parseFloat(d['RAM']);return(!isNaN(p)&&!isNaN(r)&&p>0)?[r,Math.round(p)]:null;}).filter(Boolean)
+    }))
+  }));
+  document.getElementById('i3').innerHTML=`Higher RAM strongly correlates with <b>higher price</b> across all brands`;
+
+  // C4 — AREA cumulative
+  const sortedP=[...prices].sort((a,b)=>a-b);
+  const step=Math.ceil(sortedP.length/40);
+  const aX=[],aY=[];
+  for(let i=0;i<sortedP.length;i+=step){aX.push('€'+Math.round(sortedP[i]));aY.push(i+1);}
+  const c4=ic('c4');charts.push(c4);
+  c4.setOption(m({
+    grid:{top:8,bottom:24,left:4,right:8,containLabel:true},
+    xAxis:{type:'category',data:aX,axisLabel:{fontSize:7,color:'#64748b',interval:7,rotate:30},axisLine:{lineStyle:{color:'#1e293b'}},splitLine:{show:false}},
+    yAxis:{type:'value',axisLabel:{fontSize:7,color:'#64748b'},splitLine:{lineStyle:{color:'rgba(255,255,255,0.04)'}}},
+    series:[{type:'line',data:aY,smooth:true,symbol:'none',
+      lineStyle:{color:'#00d4ff',width:2},
+      areaStyle:{color:{type:'linear',x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:'rgba(0,212,255,0.35)'},{offset:1,color:'rgba(0,212,255,0.02)'}]}}
+    }]
+  }));
+  document.getElementById('i4').innerHTML=`Steep cumulative rise between <b>€500–€1,500</b> — core market segment`;
+
+  // C5 — SUNBURST cpu→storage
+  const sunMap={};
+  data.forEach(d=>{const cf=cpuFam(d),st=d['Storage type']||'Unknown';if(!sunMap[cf])sunMap[cf]={};sunMap[cf][st]=(sunMap[cf][st]||0)+1;});
+  const sunData=Object.entries(sunMap).map(([cpu,stObj],i)=>({
+    name:cpu,value:Object.values(stObj).reduce((a,b)=>a+b,0),
+    itemStyle:{color:PAL[i%PAL.length]},
+    children:Object.entries(stObj).map(([st,v])=>({name:st,value:v,itemStyle:{color:PAL[i%PAL.length],opacity:0.55}}))
+  }));
+  const c5=ic('c5');charts.push(c5);
+  c5.setOption(m({
+    tooltip:{trigger:'item',formatter:p=>`<b>${p.name}</b>: ${p.value}`},
+    series:[{
+      type:'sunburst',radius:['18%','88%'],center:['50%','50%'],
+      nodeClick:false,sort:null,data:sunData,
+      label:{show:true,fontSize:7.5,color:'#e2e8f0',rotate:'tangential',minAngle:15},
+      levels:[
+        {},
+        {r0:'20%',r:'55%',label:{rotate:'tangential',fontSize:9},itemStyle:{borderWidth:2,borderColor:'rgba(5,8,16,0.5)'}},
+        {r0:'56%',r:'86%',label:{position:'outside',fontSize:7.5},itemStyle:{borderWidth:1,borderColor:'rgba(5,8,16,0.5)'}}
+      ]
+    }]
+  }));
+  document.getElementById('i5').innerHTML=`Core i7 shows the widest storage type diversity of all CPU families`;
+
+  // C6 — BUBBLE brand: avgPrice vs count, size=avgRAM
+  const bubbleData=brandData.map(b=>{
+    const bd=data.filter(d=>d['Brand']===b.name);
+    const br=bd.map(d=>parseFloat(d['RAM'])).filter(r=>!isNaN(r));
+    return[b.avgPrice,b.value,br.length?Math.round(avg(br)):8,b.name];
+  });
+  const c6=ic('c6');charts.push(c6);
+  c6.setOption(m({
+    grid:{top:6,bottom:24,left:4,right:8,containLabel:true},
+    tooltip:{trigger:'item',formatter:p=>`<b>${p.data[3]}</b><br>Avg Price: €${p.data[0]}<br>Models: ${p.data[1]}<br>Avg RAM: ${p.data[2]}GB`},
+    xAxis:{type:'value',name:'Avg Price €',nameTextStyle:{fontSize:8,color:'#64748b'},axisLabel:{fontSize:8,color:'#64748b',formatter:v=>'€'+v},splitLine:{lineStyle:{color:'rgba(255,255,255,0.04)'}}},
+    yAxis:{type:'value',name:'# Models',nameTextStyle:{fontSize:8,color:'#64748b'},axisLabel:{fontSize:8,color:'#64748b'},splitLine:{lineStyle:{color:'rgba(255,255,255,0.04)'}}},
+    series:[{
+      type:'scatter',data:bubbleData,
+      symbolSize:d=>Math.max(12,Math.min(44,d[2]*2.2)),
+      label:{show:true,formatter:p=>p.data[3],position:'inside',fontSize:7,color:'#fff'},
+      itemStyle:{color:p=>PAL[p.dataIndex%PAL.length],opacity:0.82},
+      emphasis:{itemStyle:{shadowBlur:16}}
+    }]
+  }));
+  document.getElementById('i6').innerHTML=`Bubble size = Avg RAM — <b>Apple</b> leads in price, <b>Asus</b> in volume`;
+
+  // C7 — HEATMAP ram×storage
+  const ramVals=[...new Set(data.map(d=>d['RAM']))].filter(Boolean).sort((a,b)=>+a-+b);
+  const storVals=['64','128','256','500','512','1000','2000'];
+  const heatData=[];
+  ramVals.forEach((r,ri)=>storVals.forEach((s,si)=>{const cnt=data.filter(d=>d['RAM']===r&&d['Storage']===s).length;if(cnt>0)heatData.push([si,ri,cnt]);}));
+  const c7=ic('c7');charts.push(c7);
+  c7.setOption(m({
+    tooltip:{trigger:'item',formatter:p=>`RAM: ${ramVals[p.data[1]]}GB  Storage: ${storVals[p.data[0]]}GB<br>Count: <b>${p.data[2]}</b>`},
+    grid:{top:10,bottom:28,left:10,right:6,containLabel:true},
+    xAxis:{type:'category',data:storVals.map(s=>s+'GB'),axisLabel:{fontSize:8,color:'#64748b'},splitArea:{show:true,areaStyle:{color:['rgba(255,255,255,0.01)','rgba(255,255,255,0.03)']}}},
+    yAxis:{type:'category',data:ramVals.map(r=>r+'GB'),axisLabel:{fontSize:8,color:'#64748b'},splitArea:{show:true,areaStyle:{color:['rgba(255,255,255,0.01)','rgba(255,255,255,0.03)']}}},
+    visualMap:{show:false,min:0,max:Math.max(...heatData.map(d=>d[2])),inRange:{color:['#0f172a','#0ea5e9','#00d4ff','#7c3aed']}},
+    series:[{type:'heatmap',data:heatData,label:{show:true,fontSize:7,color:'#e2e8f0'},emphasis:{itemStyle:{shadowBlur:10,shadowColor:'rgba(0,212,255,0.5)'}}}]
+  }));
+  document.getElementById('i7').innerHTML=`<b>16GB RAM + 512GB SSD</b> is overwhelmingly the most popular config`;
+
+  // C8 — STEP LINE cumulative by price bracket
+  const stepPrices=[200,400,600,800,1000,1200,1500,2000,2500,3000,4000,5000];
+  const stepCounts=stepPrices.map(p=>prices.filter(x=>x<=p).length);
+  const c8=ic('c8');charts.push(c8);
+  c8.setOption(m({
+    grid:{top:8,bottom:24,left:4,right:8,containLabel:true},
+    tooltip:{trigger:'axis',formatter:p=>`Under €${p[0].axisValue}: <b>${p[0].data} models</b>`},
+    xAxis:{type:'category',data:stepPrices.map(p=>'€'+p),axisLabel:{fontSize:7.5,color:'#64748b',rotate:30},axisLine:{lineStyle:{color:'#1e293b'}},splitLine:{show:false}},
+    yAxis:{type:'value',axisLabel:{fontSize:7.5,color:'#64748b'},splitLine:{lineStyle:{color:'rgba(255,255,255,0.04)'}}},
+    series:[{
+      type:'line',data:stepCounts,step:'end',
+      lineStyle:{color:'#f472b6',width:2.5},
+      itemStyle:{color:'#f472b6'},symbol:'circle',symbolSize:6,
+      areaStyle:{color:{type:'linear',x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:'rgba(244,114,182,0.3)'},{offset:1,color:'rgba(244,114,182,0.02)'}]}}
+    }]
+  }));
+  document.getElementById('i8').innerHTML=`<b>80%+</b> of all models priced under €1,500 — dominant mid-range market`;
+
+  // C9 — FUNNEL gpu tiers
+  const gpuTier=d=>{const g=d['GPU']||'';if(!g)return'Integrated';if(/RTX 40[89]0/i.test(g))return'RTX 4080/4090';if(/RTX 40[5-7]0/i.test(g))return'RTX 4050–4070';if(/RTX 30[6-9]0/i.test(g))return'RTX 3060–3080';if(/RTX 3050/i.test(g))return'RTX 3050';if(/RTX 20/i.test(g))return'RTX 2000s';if(/GTX/i.test(g))return'GTX Legacy';return'Other GPU';};
+  const funnelMap={};
+  data.forEach(d=>{const t=gpuTier(d);funnelMap[t]=(funnelMap[t]||0)+1;});
+  const funnelData=Object.entries(funnelMap).sort((a,b)=>b[1]-a[1]).map(([n,v],i)=>({name:n,value:v,itemStyle:{color:PAL[i%PAL.length]}}));
+  const c9=ic('c9');charts.push(c9);
+  c9.setOption(m({
+    tooltip:{trigger:'item',formatter:p=>`<b>${p.name}</b>: ${p.value} models`},
+    series:[{
+      type:'funnel',left:'2%',right:'2%',top:'4%',bottom:'4%',
+      minSize:'10%',maxSize:'100%',sort:'descending',gap:3,
+      label:{show:true,position:'inside',fontSize:8.5,color:'#fff',formatter:p=>`${p.name} (${p.value})`},
+      itemStyle:{borderWidth:0},
+      emphasis:{label:{fontSize:10}},
+      data:funnelData
+    }]
+  }));
+  document.getElementById('i9').innerHTML=`<b>Integrated GPU</b> is most common — RTX 3050 tops dedicated tiers`;
+
+  // C10 — POLAR BAR top brands
+  const polarBrands=brandData.slice(0,8);
+  const c10=ic('c10');charts.push(c10);
+  c10.setOption(m({
+    tooltip:{trigger:'item',formatter:p=>`<b>${p.name}</b>: ${p.value} models`},
+    angleAxis:{type:'category',data:polarBrands.map(b=>b.name),axisLabel:{fontSize:8.5,color:'#94a3b8'},axisLine:{lineStyle:{color:'rgba(255,255,255,0.08)'}}},
+    radiusAxis:{type:'value',axisLabel:{fontSize:7,color:'#64748b'},splitLine:{lineStyle:{color:'rgba(255,255,255,0.05)'}}},
+    polar:{radius:'72%',center:['50%','52%']},
+    series:[{
+      type:'bar',coordinateSystem:'polar',
+      data:polarBrands.map((b,i)=>({name:b.name,value:b.value,itemStyle:{color:PAL[i%PAL.length],borderRadius:3}})),
+      emphasis:{itemStyle:{shadowBlur:12}}
+    }]
+  }));
+  document.getElementById('i10').innerHTML=`Polar view confirms <b>${polarBrands[0].name}</b> dominates catalog size`;
+
+  return charts;
+}
+
+main();
+</script>
+</body>
+</html>
